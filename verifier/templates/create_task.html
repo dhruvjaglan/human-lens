@@ -1,0 +1,112 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create and Check Task</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Create a Task</h1>
+
+<form id="taskForm" enctype="multipart/form-data">
+    <div>
+        <label for="taskDetails">Details:</label><br>
+        <textarea id="taskDetails" name="details" rows="4" cols="50" placeholder="Enter task details" required></textarea>
+    </div>
+    <div>
+        <label for="taskImage">Image:</label><br>
+        <input type="file" id="taskImage" name="image" accept="image/*">
+    </div>
+    <div>
+        <label for="taskOptions">Options (JSON format):</label><br>
+        <input type="text" id="taskOptions" name="options" placeholder='Enter options as JSON, e.g., ["option1", "option2"]' required>
+    </div>
+    <button type="submit">Create Task</button>
+</form>
+
+<div id="taskResult" class="result"></div>
+
+<script>
+    document.getElementById('taskForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        // Create a new FormData object to handle file uploads
+        var formData = new FormData();
+        formData.append('details', document.getElementById('taskDetails').value);
+        
+        // Check if an image is selected and append it to formData
+        var imageFile = document.getElementById('taskImage').files[0];
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+        
+        // Append the options field
+        var options = document.getElementById('taskOptions').value;
+        try {
+            var parsedOptions = JSON.parse(options);
+            formData.append('options', JSON.stringify(parsedOptions));
+        } catch (e) {
+            alert('Options should be in JSON format');
+            return;
+        }
+
+        // Create a new task using AJAX
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/task/create/', true); // Change '/api/tasks/' to your actual task creation API endpoint
+        xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}'); // Include CSRF token for Django
+
+        xhr.onload = function() {
+            if (xhr.status === 201) {
+                // Task created successfully, start polling for the result
+                var task = JSON.parse(xhr.responseText);
+                checkTaskResult(task.id);
+            } else {
+                // Handle error
+                alert('Error creating task: ' + xhr.statusText);
+            }
+        };
+
+        xhr.send(formData);
+    });
+
+    function checkTaskResult(taskId) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/task/get_result/' + taskId + '/', true); // Change '/api/tasks/{id}/result/' to your actual result checking API endpoint
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                // Task completed successfully, display the result
+                var result = JSON.parse(xhr.responseText);
+                document.getElementById('taskResult').innerText = 'Task Completed: ' + result.tag;
+            } else if (xhr.status === 400) {
+                // Task not completed yet, retry after some time
+                setTimeout(function() {
+                    checkTaskResult(taskId);
+                }, 5000); // Check every 5 seconds
+            } else {
+                // Handle error
+                alert('Error checking task result: ' + xhr.statusText);
+            }
+        };
+
+        xhr.send();
+    }
+</script>
+
+</body>
+</html>

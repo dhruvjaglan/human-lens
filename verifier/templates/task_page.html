@@ -1,0 +1,177 @@
+{% load static %} <!-- Load the static tag at the top of the template -->
+
+<!-- templates/task_page.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Your Verification Tasks</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}"> <!-- Link to your CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .option-group button {
+            margin-bottom: 5px; /* Adjust the value as needed */
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Verifier Dashboard</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link"></a>Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1>Your Assigned Verification Tasks</h1>
+        <div id="tasks-container" class="row">
+            {% if tasks %}
+                {% for task_result in tasks %}
+                    <div class="col-md-4 mb-3 task-card" id="task-{{ task_result.task.id }}">
+                        <div class="card">
+                            {% if task_result.task.image %}
+                            <img src="{{ task_result.task.image.url }}" class="card-img-top" alt="Task Image">
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title">Task #{{ task_result.task.id }}</h5>
+                                <p class="card-text">{{ task_result.task.details }}</p>
+                                <form method="post" action="/task/tag_result/{{ task_result.task.id }}/">
+                                    {% csrf_token %}
+                                    <div class="form-group">
+                                        <label for="tag">Select Tag:</label>
+                                        <div class="btn-group-vertical option-group" role="group" aria-label="Basic example">
+                                            {% for option in task_result.task.options %}
+                                                <button type="button" class="btn btn-secondary" onclick="selectOption('{{ option }}', '{{ task_result.task.id }}')">{{ option }}</button>
+                                            {% endfor %}
+                                        </div>
+                                        <input type="hidden" name="tag" id="selected_option_{{ task_result.task.id }}">
+                                    </div>
+                            
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>You have no tasks assigned currently.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Include Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Include WebSocket connection -->
+    <script>
+        
+        function selectOption(option, taskId) {
+    // Set the value of the hidden input field
+    document.getElementById('selected_option_' + taskId).value = option;
+
+    // Remove active class from previously selected button
+    let buttons = document.querySelectorAll('#task-' + taskId + ' .btn-group-vertical button');
+    buttons.forEach(button => button.classList.remove('active'));
+
+    // Add active class to the clicked button
+    event.target.classList.add('active');
+
+    // Get the form element
+    let form = event.target.closest('form');
+
+    // Collect form data
+    let formData = new FormData(form);
+    let params = new URLSearchParams(formData).toString();
+
+    // Send an AJAX POST request
+    let xhr = new XMLHttpRequest();
+    xhr.open('POST', form.action, true);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    xhr.setRequestHeader('X-CSRFToken', csrfToken);
+
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 200) {
+                // On success, remove the task card
+                let taskCard = document.getElementById('task-' + taskId);
+                    if (taskCard) {
+                        taskCard.remove();
+                    } else {
+                        console.error(`Task card #task-${taskId} not found.`);
+                    }
+            } else {
+                // Handle error (optional)
+                alert('There was an error submitting your tag.');
+            }
+        }
+    };
+
+    xhr.send(params);
+}
+
+
+        const userId = "{{ request.user.id }}"; // Get user ID from Django template context
+        const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const taskSocket = new WebSocket(
+            `${wsScheme}://${window.location.host}/ws/tasks/${userId}/`
+        );
+
+        taskSocket.onerror = function(event) {
+        console.error('WebSocket error observed:', event);
+        };
+
+
+        taskSocket.onmessage = function(e) {
+            console.log(e.data);
+            const data = JSON.parse(e.data);
+            const taskContainer = document.getElementById('tasks-container');
+
+            const generateOptionsHtml = (options, taskId) => {
+                return options.map(option => `
+                    <button type="button" class="btn btn-secondary" style="margin-bottom: 5px;" onclick="selectOption('${option}', '${taskId}')">${option}</button>
+                `).join('');
+            };
+
+            // Create new task card
+            const taskCard = document.createElement('div');
+            taskCard.className = 'col-md-4 mb-3 task-card';
+            taskCard.id = `task-${data.task_id}`;
+            taskCard.innerHTML = `
+                <div class="card">
+                    ${data.image_url ? `<img src="${data.image_url}" class="card-img-top" alt="Task Image">` : ''}
+                    <div class="card-body">
+                        <h5 class="card-title">Task #${data.task_id}</h5>
+                        <p class="card-text">${data.details}</p>
+                        <form method="post" action="/task/tag_result/${data.task_id}/">
+                            <label for="tag">Select Tag:</label>
+                            <div class="btn-group-vertica option-group" role="group" aria-label="Basic example">
+                                ${generateOptionsHtml(data.options, data.task_id)}
+                            </div>
+                            <input type="hidden" name="tag" id="selected_option_${data.task_id}">
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            taskContainer.appendChild(taskCard);
+        };
+
+        taskSocket.onclose = function(e) {
+            console.error('Task socket closed unexpectedly');
+        };
+    </script>
+</body>
+</html>
