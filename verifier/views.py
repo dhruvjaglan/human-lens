@@ -71,8 +71,6 @@ def task_form_view(request):
 
 
 ###### fetch active assigned task
-
-
 def custom_login_view(request):
     if request.method == 'POST':
         form = CustomLoginForm(request, data=request.POST)

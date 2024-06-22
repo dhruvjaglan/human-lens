@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 import uuid
+import boto3
+from django.conf import settings
 
 
 class CustomUser(AbstractUser):
@@ -37,6 +39,23 @@ class TaskObject(models.Model):
     options = models.JSONField(default=list)
     state = models.CharField(
         max_length=1, choices=TASK_STATE, default=PENDING)
+    
+    def get_private_image_url(self):
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
+        )
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+        object_key = str(self.image)
+        url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': object_key},
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+        return url
+
 
 class VerificationTaskResult(models.Model):
     tag = models.TextField(null=True, blank=True)

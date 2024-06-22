@@ -36,10 +36,28 @@ SITE_ID = 1
 
 LOGIN_REDIRECT_URL = '/tasks/'  # Set the redirect URL after login
 
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
 
-DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
-GS_BUCKET_NAME = 'stagging-storage'
-GS_DEFAULT_ACL = 'publicRead'
+
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = 'human-lens'
+
+AWS_S3_REGION_NAME = 'ap-southeast-2'  # e.g., 'us-west-2'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False  # Set to True if you need query string authentication for private files
+
+# Static files (CSS, JavaScript, images)
+# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/static/'
+
+
+# Media files (uploads)
+DEFAULT_FILE_STORAGE = 'verifier.storage_backends.PublicS3Boto3Storage'
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/media/'
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -96,7 +114,8 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('redis', 6379)],
+            # 'hosts': [('localhost', 6379)],
+             "hosts": [('redis', 6379)],
         },
     },
 }

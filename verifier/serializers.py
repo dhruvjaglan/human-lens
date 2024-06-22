@@ -13,11 +13,21 @@ class TaskSerializer(serializers.ModelSerializer):
 
     ## add company based on the user on create
     def validate(self, attrs):
+        request = self.context.get('request')
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        token=None
+        if auth_header:
+            _, token = auth_header.split('Bearer ')
+
         if 'company' not in attrs and self.context['request'].user.company:
             attrs['company'] = self.context['request'].user.company
+        elif token:
+            attrs['company'] = Company.objects.get(key=token)
         else:
             attrs['company'] = Company.objects.get(id=1)
         return attrs
+    
+
 
     def create(self, validated_data):
         tags_data = validated_data.pop('tags', [])

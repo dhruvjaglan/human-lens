@@ -33,15 +33,41 @@
         <input type="file" id="taskImage" name="image" accept="image/*">
     </div>
     <div>
-        <label for="taskOptions">Options (JSON format):</label><br>
-        <input type="text" id="taskOptions" name="options" placeholder='Enter options as JSON, e.g., ["option1", "option2"]' required>
-    </div>
+        <label for="taskOptions">Options:</label><br>
+        <input type="text" id="newOption" placeholder="Enter option">
+        <button onclick="addOption(event)">Add Option</button>
+        <ul id="optionList"></ul>
+        <input type="hidden" id="taskOptions" name="options" required>
+    </div>    
     <button type="submit">Create Task</button>
 </form>
-
+<button type="reset" onclick="resetForm()">Reset</button>
 <div id="taskResult" class="result"></div>
 
 <script>
+    var optionsArray = [];
+
+        function addOption(event) {
+            event.preventDefault(); 
+            var newOption = document.getElementById('newOption').value.trim();
+            if (newOption !== '') {
+                optionsArray.push(newOption);
+                updateOptionList();
+                document.getElementById('newOption').value = '';
+            }
+        }
+
+        function updateOptionList() {
+            var optionList = document.getElementById('optionList');
+            optionList.innerHTML = '';
+            optionsArray.forEach(function(option) {
+                var li = document.createElement('li');
+                li.textContent = option;
+                optionList.appendChild(li);
+            });
+            document.getElementById('taskOptions').value = JSON.stringify(optionsArray);
+        }
+
     document.getElementById('taskForm').addEventListener('submit', function(event) {
         event.preventDefault();
 
@@ -84,7 +110,22 @@
         xhr.send(formData);
     });
 
+    var startTime;
+
+    function resetForm() {
+    document.getElementById('taskForm').reset();
+    optionsArray = [];
+    updateOptionList();
+    startTime = null;
+    document.getElementById('taskResult').innerText = '';
+    }
+
+
     function checkTaskResult(taskId) {
+        if (!startTime) {
+            startTime = new Date().getTime();
+        }
+
         var xhr = new XMLHttpRequest();
         xhr.open('GET', '/task/get_result/' + taskId + '/', true); // Change '/api/tasks/{id}/result/' to your actual result checking API endpoint
 
@@ -92,7 +133,9 @@
             if (xhr.status === 200) {
                 // Task completed successfully, display the result
                 var result = JSON.parse(xhr.responseText);
-                document.getElementById('taskResult').innerText = 'Task Completed: ' + result.tag;
+                var endTime = new Date().getTime();
+                var elapsedTime = (endTime - startTime) / 1000; // Convert milliseconds to seconds
+                document.getElementById('taskResult').innerText = 'Task Completed: ' + result.tag + ', Time Taken: ' + elapsedTime + ' seconds';
             } else if (xhr.status === 400) {
                 // Task not completed yet, retry after some time
                 setTimeout(function() {
