@@ -54,7 +54,14 @@ def post_task_result(request, pk):
 ##### Fetch result of a Task
 @api_view(['GET'])
 def get_task_result(request, pk):
-    task = TaskObject.objects.get(id=pk)
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    token=None
+    if auth_header:
+        _, token = auth_header.split('Bearer ')
+    if token:
+        task = TaskObject.objects.get(id=pk, company__key=token)
+    else:
+        task = TaskObject.objects.get(id=pk)
     if task.state == TaskObject.COMPLETED:
         task_result = VerificationTaskResult.objects.get(task=task, completed=True)
         return Response(status=200, data={"tag": task_result.tag})

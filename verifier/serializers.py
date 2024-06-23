@@ -19,7 +19,7 @@ class TaskSerializer(serializers.ModelSerializer):
         if auth_header:
             _, token = auth_header.split('Bearer ')
 
-        if 'company' not in attrs and self.context['request'].user.company:
+        if 'company' not in attrs and self.context['request'].user.is_authenticated:
             attrs['company'] = self.context['request'].user.company
         elif token:
             attrs['company'] = Company.objects.get(key=token)

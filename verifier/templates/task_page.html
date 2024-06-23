@@ -1,6 +1,4 @@
-{% load static %} <!-- Load the static tag at the top of the template -->
-
-<!-- templates/task_page.html -->
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,63 +6,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Your Verification Tasks</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}"> <!-- Link to your CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        .option-group button {
-            margin-bottom: 5px; /* Adjust the value as needed */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
         }
+        .header {
+            width: 100%;
+            background-color: #343a40;
+            color: #ffffff;
+            padding: 10px;
+            text-align: center;
+        }
+        .main-content {
+            display: flex;
+            flex-grow: 1;
+        }
+        .sidebar {
+            width: 25%;
+            background-color: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+        }
+        .content {
+            width: 75%;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .task-card {
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .task-card:hover {
+            background-color: #f1f1f1;
+        }
+        .task-card img {
+            max-height: 50px;
+            object-fit: cover;
+        }
+        .selected-task-card {
+            max-width: 600px;
+            width: 100%;
+            height: auto;
+            transition: transform 0.3s ease-in-out;
+            text-align: center;
+        }
+        .selected-task-card img {
+            max-height: 200px;
+        }
+        .option-group button {
+            margin-bottom: 10px; /* Adds gap between the buttons */
+        }
+        /* Ensure the last button doesn't have extra bottom margin */
+        .option-group button:last-child {
+            margin-bottom: 0;
+        }
+
     </style>
 </head>
-
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Verifier Dashboard</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link"></a>Logout</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
+    <!-- Heading -->
+    <div class="header">
+        <h1>Your Verification Tasks</h1>
+    </div>
 
-    <div class="container mt-4">
-        <h1>Your Assigned Verification Tasks</h1>
-        <div id="tasks-container" class="row">
-            {% if tasks %}
-                {% for task_result in tasks %}
-                    <div class="col-md-4 mb-3 task-card" id="task-{{ task_result.task.id }}">
-                        <div class="card">
-                            {% if task_result.task.image %}
-                            <img src="{{ task_result.task.image.url }}" class="card-img-top" alt="Task Image">
-                            {% endif %}
+    <div class="main-content">
+        <div class="sidebar">
+            <h2>Tasks List</h2>
+            <div id="tasks-list">
+                {% if tasks %}
+                    {% for task_result in tasks %}
+                        <div class="task-card card" id="task-{{ task_result.task.id }}" 
+                            data-details="{{ task_result.task.details }}" 
+                            data-options="{{ task_result.task.options }}"
+                            onclick="selectTask({{ task_result.task.id }})">
                             <div class="card-body">
+                                {% if task_result.task.image %}
+                                <img src="{{ task_result.task.image.url }}" class="card-img-top" alt="Task Image">
+                                {% endif %}
                                 <h5 class="card-title">Task #{{ task_result.task.id }}</h5>
-                                <p class="card-text">{{ task_result.task.details }}</p>
-                                <form method="post" action="/task/tag_result/{{ task_result.task.id }}/">
-                                    {% csrf_token %}
-                                    <div class="form-group">
-                                        <label for="tag">Select Tag:</label>
-                                        <div class="btn-group-vertical option-group" role="group" aria-label="Basic example">
-                                            {% for option in task_result.task.options %}
-                                                <button type="button" class="btn btn-secondary" onclick="selectOption('{{ option }}', '{{ task_result.task.id }}')">{{ option }}</button>
-                                            {% endfor %}
-                                        </div>
-                                        <input type="hidden" name="tag" id="selected_option_{{ task_result.task.id }}">
-                                    </div>
-                            
-                                </form>
                             </div>
                         </div>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <p>You have no tasks assigned currently.</p>
-            {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p>You have no tasks assigned currently.</p>
+                {% endif %}
+            </div>
+            
+        </div>
+
+        <div class="content">
+            <div id="task-details" class="selected-task-card">
+                <p>Select a task to view details</p>
+            </div>
         </div>
     </div>
 
@@ -72,9 +116,121 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <!-- Include WebSocket connection -->
+
     <script>
-        
+
+const userId = "{{ request.user.id }}"; // Get user ID from Django template context
+const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+const taskSocket = new WebSocket(
+    `${wsScheme}://${window.location.host}/ws/tasks/${userId}/`
+);
+
+taskSocket.onerror = function(event) {
+    console.error('WebSocket error observed:', event);
+};
+
+taskSocket.onmessage = function(e) {
+    console.log(e.data);
+    const data = JSON.parse(e.data);
+    const tasksList = document.getElementById('tasks-list');
+
+    const generateOptionsHtml = (options, taskId) => {
+        return options.map(option => `
+            <button type="button" class="btn btn-secondary" style="margin-bottom: 5px;" onclick="selectOption('${option}', '${taskId}')">${option}</button>
+        `).join('');
+    };
+
+    // Create new task card
+    const taskCard = document.createElement('div');
+    taskCard.className = 'task-card card';
+    taskCard.id = `task-${data.task_id}`;
+    taskCard.setAttribute('data-details', data.details);
+    taskCard.setAttribute('data-options', JSON.stringify(data.options));
+    taskCard.onclick = function() {
+        selectTask(data.task_id);
+    };
+    taskCard.innerHTML = `
+        <div class="card-body">
+            ${data.image_url ? `<img src="${data.image_url}" class="card-img-top" alt="Task Image">` : ''}
+            <h5 class="card-title">Task #${data.task_id}</h5>
+        </div>
+    `;
+
+    tasksList.insertBefore(taskCard, tasksList.firstChild);
+};
+
+taskSocket.onclose = function(e) {
+    console.error('Task socket closed unexpectedly');
+};
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Automatically select the first task when the page loads
+            let firstTask = document.querySelector('.task-card');
+            if (firstTask) {
+                selectTask(firstTask.id.replace('task-', ''));
+            }
+        });
+
+        // Function to handle task selection and display in the center
+        function selectTask(taskId) {
+    let taskCard = document.getElementById('task-' + taskId);
+    if (!taskCard) {
+        console.error('Task card #task-' + taskId + ' not found.');
+        return;
+    }
+
+    let taskDetails = taskCard.getAttribute('data-details');
+    console.log('Task details:', taskDetails);
+
+    let taskOptionsJson = taskCard.getAttribute('data-options');
+    console.log('Task options JSON:', taskOptionsJson);
+
+    let taskOptions;
+
+    try {
+        taskOptions = JSON.parse(taskOptionsJson.replace(/'/g, '"')        );
+    } catch (error) {
+        console.error('Error parsing task options JSON:', error);
+        return;
+    }
+
+    console.log('Task options:', taskOptions);
+
+    // Show task details in the content area
+    let detailsHtml = `
+        <div class="card">
+            ${taskCard.querySelector('img') ? taskCard.querySelector('img').outerHTML : ''}
+            <div class="card-body">
+                <h5 class="card-title">Task #${taskId}</h5>
+                <p class="card-text">${taskDetails}</p>
+                <form method="post" action="/task/tag_result/${taskId}/">
+                    <input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('meta[name="csrf-token"]').getAttribute('content')}">
+                    <div class="form-group">
+                        <label for="tag">Select Tag:</label>
+                        <div class="btn-group-vertical option-group" role="group" aria-label="Basic example">
+                            ${taskOptions ? taskOptions.map((option, index) => `<button type="button" class="btn btn-secondary ${index === 0 ? 'active' : ''}" onclick="selectOption('${option}', '${taskId}')">${option}</button>`).join('') : ''}
+                        </div>
+                        <input type="hidden" name="tag" id="selected_option_${taskId}" value="${taskOptions ? taskOptions[0] : ''}">
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    document.getElementById('task-details').innerHTML = detailsHtml;
+}
+
+
+
+        function getNextTaskCard(currentTaskCard) {
+    let nextTaskCard = currentTaskCard.nextElementSibling;
+    if (!nextTaskCard) {
+        nextTaskCard = currentTaskCard.previousElementSibling;
+    }
+    return nextTaskCard;
+}
+
+
+        // Function to handle option selection within a task
         function selectOption(option, taskId) {
     // Set the value of the hidden input field
     document.getElementById('selected_option_' + taskId).value = option;
@@ -93,85 +249,49 @@
     let formData = new FormData(form);
     let params = new URLSearchParams(formData).toString();
 
+    
+
     // Send an AJAX POST request
-    let xhr = new XMLHttpRequest();
-    xhr.open('POST', form.action, true);
-    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: params
+    })
+    .then(response => {
+        if (response.ok) {
+            // On success, remove the task card
+            let taskCard = document.getElementById('task-' + taskId);
+            let nextTask = getNextTaskCard(taskCard);
 
-    xhr.setRequestHeader('X-CSRFToken', csrfToken);
-
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status === 200) {
-                // On success, remove the task card
-                let taskCard = document.getElementById('task-' + taskId);
-                    if (taskCard) {
-                        taskCard.remove();
-                    } else {
-                        console.error(`Task card #task-${taskId} not found.`);
-                    }
+            if (taskCard) {
+                taskCard.remove();
             } else {
-                // Handle error (optional)
-                alert('There was an error submitting your tag.');
+                console.error('Task card #task-' + taskId + ' not found.');
             }
+            
+            if (nextTask) {
+                let nextTaskId = nextTask.id.replace('task-', '');
+                selectTask(nextTaskId);
+            } else {
+                // No tasks left, show a message or handle as needed
+                console.log('No tasks left.');
+            }
+        } else {
+            // Handle error (optional)
+            throw new Error('There was an error submitting your tag.');
         }
-    };
-
-    xhr.send(params);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(error.message); // Display the error message to the user
+    });
 }
 
 
-        const userId = "{{ request.user.id }}"; // Get user ID from Django template context
-        const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-        const taskSocket = new WebSocket(
-            `${wsScheme}://${window.location.host}/ws/tasks/${userId}/`
-        );
-
-        taskSocket.onerror = function(event) {
-        console.error('WebSocket error observed:', event);
-        };
-
-
-        taskSocket.onmessage = function(e) {
-            console.log(e.data);
-            const data = JSON.parse(e.data);
-            const taskContainer = document.getElementById('tasks-container');
-
-            const generateOptionsHtml = (options, taskId) => {
-                return options.map(option => `
-                    <button type="button" class="btn btn-secondary" style="margin-bottom: 5px;" onclick="selectOption('${option}', '${taskId}')">${option}</button>
-                `).join('');
-            };
-
-            // Create new task card
-            const taskCard = document.createElement('div');
-            taskCard.className = 'col-md-4 mb-3 task-card';
-            taskCard.id = `task-${data.task_id}`;
-            taskCard.innerHTML = `
-                <div class="card">
-                    ${data.image_url ? `<img src="${data.image_url}" class="card-img-top" alt="Task Image">` : ''}
-                    <div class="card-body">
-                        <h5 class="card-title">Task #${data.task_id}</h5>
-                        <p class="card-text">${data.details}</p>
-                        <form method="post" action="/task/tag_result/${data.task_id}/">
-                            <label for="tag">Select Tag:</label>
-                            <div class="btn-group-vertica option-group" role="group" aria-label="Basic example">
-                                ${generateOptionsHtml(data.options, data.task_id)}
-                            </div>
-                            <input type="hidden" name="tag" id="selected_option_${data.task_id}">
-                        </form>
-                    </div>
-                </div>
-            `;
-
-            taskContainer.appendChild(taskCard);
-        };
-
-        taskSocket.onclose = function(e) {
-            console.error('Task socket closed unexpectedly');
-        };
     </script>
 </body>
 </html>
