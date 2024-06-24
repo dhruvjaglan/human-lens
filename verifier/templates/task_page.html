@@ -55,15 +55,22 @@
             object-fit: cover;
         }
         .selected-task-card {
-            max-width: 600px;
-            width: 100%;
-            height: auto;
+            max-width: 600px;  /* Container maximum width */
+            width: auto;       /* Container width adjusts to content */
+            height: auto;      /* Container height adjusts to content */
             transition: transform 0.3s ease-in-out;
-            text-align: center;
+            text-align: center; /* Centers text within the card */
+            overflow: hidden;  /* Hides overflow content */
         }
+
         .selected-task-card img {
-            max-height: 200px;
+            max-width: 100%;   /* Ensures image width does not exceed container's width */
+            max-height: 200px; /* Ensures image height does not exceed 200px */
+            width: auto;       /* Maintains natural width (less than max-width) */
+            height: auto;      /* Maintains aspect ratio */
+            object-fit: contain; /* Fits image within width and height constraints */
         }
+
         .option-group button {
             margin-bottom: 10px; /* Adds gap between the buttons */
         }

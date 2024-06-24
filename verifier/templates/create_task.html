@@ -68,6 +68,50 @@
             document.getElementById('taskOptions').value = JSON.stringify(optionsArray);
         }
 
+    
+        function showPopup(message) {
+            console.log('Showing popup with message:', message);
+    // Create a new div element for the popup
+    var popup = document.createElement('div');
+
+    // Set its content and styles
+    popup.innerText = message;
+    popup.style.position = 'fixed';
+    popup.style.bottom = '20px';
+    popup.style.right = '20px';
+    popup.style.backgroundColor = '#28a745'; // Success green color
+    popup.style.color = 'white';
+    popup.style.padding = '10px 20px';
+    popup.style.borderRadius = '5px';
+    popup.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.1)';
+    popup.style.zIndex = '1000'; // Ensure it appears above other elements
+    popup.style.display = 'flex'; // Use flexbox to align close button
+
+    // Create a span element for the close button
+    var closeButton = document.createElement('span');
+    closeButton.innerHTML = '&times;'; // HTML entity for '×'
+    closeButton.style.marginLeft = '15px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.fontWeight = 'bold';
+
+    // Add a click event to remove the popup
+    closeButton.onclick = function() {
+        popup.remove();
+    };
+
+    // Append the close button to the popup
+    popup.appendChild(closeButton);
+
+    // Append the popup to the body
+    document.body.appendChild(popup);
+
+    // Remove the popup after 3 seconds if not closed manually
+    setTimeout(function() {
+        popup.remove();
+    }, 5000);
+}
+
+
     document.getElementById('taskForm').addEventListener('submit', function(event) {
         event.preventDefault();
 
@@ -99,8 +143,11 @@
         xhr.onload = function() {
             if (xhr.status === 201) {
                 // Task created successfully, start polling for the result
+                showPopup('Task submitted successfully!');
                 var task = JSON.parse(xhr.responseText);
                 checkTaskResult(task.id);
+                
+
             } else {
                 // Handle error
                 alert('Error creating task: ' + xhr.statusText);
@@ -122,6 +169,7 @@
 
 
     function checkTaskResult(taskId) {
+        document.getElementById('taskResult').innerText = 'Waiting for Task Results...';
         if (!startTime) {
             startTime = new Date().getTime();
         }
