@@ -62,6 +62,6 @@ class VerificationTaskResult(models.Model):
     completed = models.BooleanField(default=False)
     task = models.ForeignKey(TaskObject, on_delete=models.CASCADE)
     tagged_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    tagged_at = models.DateTimeField(auto_now_add=True)
+    tagged_at = models.DateTimeField(auto_now=True)
 
 

@@ -1,0 +1,254 @@
+{% load static %}
+{% load time_filters %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Your Verification Tasks</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            width: 100%;
+            background-color: #343a40;
+            color: #ffffff;
+            padding: 10px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+        .main-content {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden; 
+        }
+        .sidebar {
+            width: 25%;
+            background-color: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+            height: calc(100vh - 60px); 
+        }
+        .content {
+            width: 75%;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align items to start (top) */
+            flex-direction: column;
+            overflow-y: auto; /* Allow scrolling within the content area */
+            height: calc(100vh - 60px); /* Adjust height to avoid overlap with the header */
+            margin-top: 10px; 
+            padding-left: 20%; 
+        }
+        .task-card {
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .task-card:hover {
+            background-color: #f1f1f1;
+        }
+        .task-card img {
+            max-height: 50px;
+            object-fit: cover;
+        }
+        .selected-task-card {
+            max-width: 600px;  /* Container maximum width */
+            width: auto;       /* Container width adjusts to content */
+            height: auto;      /* Container height adjusts to content */
+            transition: transform 0.3s ease-in-out;
+            text-align: center; /* Centers text within the card */
+            overflow: hidden;  /* Hides overflow content */
+        }
+
+        .selected-task-card img {
+            max-width: 100%;   /* Ensures image width does not exceed container's width */
+            max-height: 200px; /* Ensures image height does not exceed 200px */
+            width: auto;       /* Maintains natural width (less than max-width) */
+            height: auto;      /* Maintains aspect ratio */
+            object-fit: contain; /* Fits image within width and height constraints */
+        }
+
+        .option-group button {
+            margin-bottom: 10px; /* Adds gap between the buttons */
+        }
+        /* Ensure the last button doesn't have extra bottom margin */
+        .option-group button:last-child {
+            margin-bottom: 0;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Heading -->
+    <div class="header">
+        <h1>Completed Tasks</h1>
+    </div>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <h2>Tasks List</h2>
+            <div id="tasks-list">
+                {% if tasks %}
+                    {% for task_result in tasks %}
+                        <div class="task-card card" id="task-{{ task_result.task.id }}" 
+                            data-details="{{ task_result.task.details }}" 
+                            data-options="{{ task_result.task.options }}"
+                            data-correct="{{task_result.tag}}"
+                            data-completedin="{% with task_result.tagged_at|time_difference_in_seconds:task_result.task.created_on as time_diff %}
+                     {{ time_diff }}
+                  {% endwith %}"
+                            onclick="selectTask({{ task_result.task.id }})">
+                            <div class="card-body">
+                                {% if task_result.task.image %}
+                                <img src="{{ task_result.task.image.url }}" class="card-img-top" alt="Task Image">
+                                {% endif %}
+                                <h5 class="card-title">Task #{{ task_result.task.id }}</h5>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p>You have no tasks assigned currently.</p>
+                {% endif %}
+            </div>
+            
+        </div>
+
+        <div class="content">
+            <div id="task-details" class="selected-task-card">
+                <p>Select a task to view details</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+
+const userId = "{{ request.user.id }}"; // Get user ID from Django template context
+        // Function to handle task selection and display in the center
+
+        
+function selectTask(taskId) {
+    let taskCard = document.getElementById('task-' + taskId);
+    if (!taskCard) {
+        console.error('Task card #task-' + taskId + ' not found.');
+        return;
+    }
+
+    let taskDetails = taskCard.getAttribute('data-details');
+    console.log('Task details:', taskDetails);
+
+    let taskOptionsJson = taskCard.getAttribute('data-options');
+    console.log('Task options JSON:', taskOptionsJson);
+
+    let correctTag = taskCard.getAttribute('data-correct');
+    console.log('Correct tag:', correctTag);
+
+    // Extract time completed in seconds
+    let timeCompletedInSeconds = taskCard.getAttribute('data-completedin');
+    console.log('Time completed in seconds:', timeCompletedInSeconds);
+
+    // Convert seconds to a readable format (e.g., HH:MM:SS)
+
+
+    let taskOptions;
+
+    try {
+        taskOptions = JSON.parse(taskOptionsJson.replace(/'/g, '"')        );
+    } catch (error) {
+        console.error('Error parsing task options JSON:', error);
+        return;
+    }
+
+    console.log('Task options:', taskOptions);
+
+    // Show task details in the content area
+    let detailsHtml = `
+        <div class="card">
+            ${taskCard.querySelector('img') ? taskCard.querySelector('img').outerHTML : ''}
+            <div class="card-body">
+                <h5 class="card-title">Task #${taskId}</h5>
+                <p class="card-text">${taskDetails}</p>
+                <p class="card-text"><strong>Correct Tag:</strong> ${correctTag}</p>
+                <p class="card-text"><strong> Completed in </strong> ${timeCompletedInSeconds} seconds</p>
+                <form method="post" action="/task/tag_result/${taskId}/">
+                    <input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('meta[name="csrf-token"]').getAttribute('content')}">
+                    <div class="form-group">
+                        <label for="tag">Select Tag:</label>
+                        <div class="btn-group-vertical option-group" role="group" aria-label="Basic example">
+                            ${taskOptions ? taskOptions.map((option, index) => `
+                                <button type="button" class="btn btn-secondary ${option === correctTag ? 'btn-success' : ''} ${index === 0 ? 'active' : ''}">
+                                    ${option}
+                                </button>
+                            `).join('') : ''}
+                        </div>
+                        <input type="hidden" name="tag" id="selected_option_${taskId}" value="${taskOptions ? taskOptions[0] : ''}">
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('task-details').innerHTML = detailsHtml;
+    document.querySelector('.content').scrollTop = 0; // Scroll to top within the content area
+    window.scrollTo({ top: document.querySelector('.main-content').offsetTop - 50, behavior: 'smooth' }); // Adjust scrolling to keep the task below the header
+}
+
+
+
+        function getNextTaskCard(currentTaskCard) {
+    let nextTaskCard = currentTaskCard.nextElementSibling;
+    if (!nextTaskCard) {
+        nextTaskCard = currentTaskCard.previousElementSibling;
+    }
+    return nextTaskCard;
+}
+
+
+        // Function to handle option selection within a task
+        function selectOption(option, taskId) {
+    // Set the value of the hidden input field
+    document.getElementById('selected_option_' + taskId).value = option;
+
+    // Remove active class from previously selected button
+    let buttons = document.querySelectorAll('#task-' + taskId + ' .btn-group-vertical button');
+    buttons.forEach(button => button.classList.remove('active'));
+
+    // Add active class to the clicked button
+    event.target.classList.add('active');
+
+    // Get the form element
+    let form = event.target.closest('form');
+
+    // Collect form data
+    let formData = new FormData(form);
+    let params = new URLSearchParams(formData).toString();
+
+    
+
+    // Send an AJAX POST request
+    
+}
+
+
+    </script>
+</body>
+</html>

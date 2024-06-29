@@ -35,6 +35,16 @@ class TaskListView(ListView):
         # Assuming a field 'assigned_to' in TaskObject model
         return VerificationTaskResult.objects.filter(tagged_by=self.request.user, completed=False, task__state=TaskObject.PENDING).select_related('task')
 
+class CompletedTaskListView(ListView):
+    model = TaskObject
+    template_name = 'completed_task.html'
+    context_object_name = 'tasks'
+
+    def get_queryset(self):
+        print(self.request.user.company)
+        # Assuming a field 'assigned_to' in TaskObject model
+        return VerificationTaskResult.objects.filter(task__company=self.request.user.company, completed=True).order_by('-tagged_at').select_related('task')
+
 
 #### Post Task Result
 @api_view(['POST'])
